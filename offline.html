@@ -14,10 +14,10 @@ a.btn:focus-visible{outline:3px solid #fff;outline-offset:2px}
 <p>The network is unavailable. Your inspections, hazards and CAPAs are stored on this device and stay accessible once the app shell is loaded.</p>
 <section class="card" aria-labelledby="t"><h2 id="t" style="font-size:1rem;margin:0 0 8px">Last known telemetry <span id="when" style="font-weight:400;color:#a3b0c8"></span></h2>
 <dl id="tel"><dt>No snapshot yet</dt><dd>—</dd></dl></section>
-<a class="btn" href="/index.html">Open app</a> <a class="btn" href="" onclick="location.reload();return false" style="background:transparent;color:inherit;border:1px solid #2a3550">Retry</a>
+<a class="btn" href="./index.html">Open app</a> <a class="btn" href="" onclick="location.reload();return false" style="background:transparent;color:inherit;border:1px solid #2a3550">Retry</a>
 <script>
 try{var s=JSON.parse(localStorage.getItem('ss_snapshot')||'null');if(s){
 document.getElementById('when').textContent='· '+new Date(s.ts).toLocaleString();
 document.getElementById('tel').innerHTML=[['Facility',s.facility],['Compliance index',s.score==null?'—':s.score+'%'],['Open CAPA',s.open],['Overdue CAPA',s.overdue],['High-risk permits',s.permits],['Days without LTI',s.lti]].map(function(r){return '<dt>'+r[0]+'</dt><dd>'+String(r[1]).replace(/</g,'&lt;')+'</dd>'}).join('')}}catch(e){}
-addEventListener('online',function(){location.href='/index.html'});
+addEventListener('online',function(){location.href='./index.html'});
 </script></main></body></html>

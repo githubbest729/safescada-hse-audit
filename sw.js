@@ -1,9 +1,11 @@
 // SafeSCADA HSE Audit service worker — cache-first app shell, network-first for API/sync paths.
 const VERSION = 'safescada-v1.0.0';
-const SHELL = ['/', '/index.html', '/offline.html', '/manifest.webmanifest', '/favicon.svg', '/favicon.ico', '/apple-touch-icon.png',
-  '/css/tokens.css', '/css/layout.css', '/css/components.css',
-  '/js/app.js', '/js/db.js', '/js/audit-engine.js', '/js/ui.js',
-  '/icons/icon-96.png', '/icons/icon-192.png', '/icons/icon-512.png'];
+const BASE = self.registration.scope; // works at domain root or any subpath (e.g. GitHub Pages project sites)
+const U = (p) => new URL(p, BASE).href;
+const SHELL = ['./', './index.html', './offline.html', './manifest.webmanifest', './favicon.svg', './favicon.ico', './apple-touch-icon.png',
+  './css/tokens.css', './css/layout.css', './css/components.css',
+  './js/app.js', './js/db.js', './js/audit-engine.js', './js/ui.js',
+  './icons/icon-96.png', './icons/icon-192.png', './icons/icon-512.png'].map(U);
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)));
@@ -47,16 +49,16 @@ self.addEventListener('fetch', (e) => {
     e.respondWith((async () => {
       try {
         const res = (await e.preloadResponse) || (await fetch(req));
-        const cache = await caches.open(VERSION); cache.put('/index.html', res.clone());
+        const cache = await caches.open(VERSION); cache.put(U('./index.html'), res.clone());
         return res;
       } catch (err) {
         const cache = await caches.open(VERSION);
-        return (await cache.match('/index.html')) || (await cache.match('/offline.html')) || Response.error();
+        return (await cache.match(U('./index.html'))) || (await cache.match(U('./offline.html'))) || Response.error();
       }
     })());
     return;
   }
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/sync')) { e.respondWith(networkFirst(req)); return; }
+  if (url.pathname.startsWith(new URL('./api/', BASE).pathname) || url.pathname.startsWith(new URL('./sync', BASE).pathname)) { e.respondWith(networkFirst(req)); return; }
   e.respondWith(cacheFirst(req));
 });
 

@@ -24,15 +24,15 @@ async function route() {
 
 /* ---------------- Dashboard ---------------- */
 async function dashboard() {
-  const [audits, capas] = await Promise.all([db.getAll('audits'), db.getAll('capas')]);
+  const [audits, capas] = await Promise.all([db.getAll('audits').catch(() => []), db.getAll('capas').catch(() => [])]);
   const fa = audits.filter((a) => a.facility === S.facility).sort((a, b) => b.ts - a.ts);
   const open = capas.filter((c) => c.facility === S.facility && c.status !== 'Verified Closed');
   const overdue = open.filter((c) => c.due < Date.now());
   const recent = fa.slice(0, 10);
   const score = recent.length ? Math.round(recent.reduce((s, a) => s + a.score, 0) / recent.length) : null;
-  const permits = await db.getMeta('permits:' + S.facility, 0);
-  let lti = await db.getMeta('lti:' + S.facility, null);
-  if (!lti) { lti = Date.now(); await db.setMeta('lti:' + S.facility, lti); }
+  const permits = await db.getMeta('permits:' + S.facility, 0).catch(() => 0);
+  let lti = await db.getMeta('lti:' + S.facility, null).catch(() => null);
+  if (!lti) { lti = Date.now(); db.setMeta('lti:' + S.facility, lti).catch(() => {}); }
   const days = Math.floor((Date.now() - lti) / 864e5);
   try { localStorage.setItem('ss_snapshot', JSON.stringify({ ts: Date.now(), facility: S.facility, score, open: open.length, overdue: overdue.length, permits, lti: days })); } catch (e) {}
 
@@ -337,7 +337,7 @@ function setupPWA() {
     let reloading = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloading) { reloading = true; location.reload(); } });
     navigator.serviceWorker.addEventListener('message', (e) => { if (e.data && e.data.type === 'SYNC') ui.toast('Connectivity restored.'); });
-    navigator.serviceWorker.register('/sw.js').then((reg) => {
+    navigator.serviceWorker.register('./sw.js', { scope: './' }).then((reg) => {
       const prompt = (w) => ui.toast('New version available.', { sticky: true, action: { label: 'Update Now', fn: () => w.postMessage('SKIP_WAITING') } });
       if (reg.waiting && navigator.serviceWorker.controller) prompt(reg.waiting);
       reg.addEventListener('updatefound', () => { const w = reg.installing; w.addEventListener('statechange', () => { if (w.state === 'installed' && navigator.serviceWorker.controller) prompt(w); }); });
@@ -358,10 +358,13 @@ function setupPWA() {
 }
 
 /* ---------------- Boot ---------------- */
-(async function init() {
-  const shell = setupShell(); setupPWA();
-  try { await db.open(); shell.badge(true); } catch (err) { shell.badge(false); ui.toast('Local database error: ' + err.message, { type: 'error', sticky: true }); }
-  db.requestPersistence().catch(() => {});
+function boot() {
+  let shell = { badge() {} };
+  try { shell = setupShell(); } catch (e) { console.error('Shell setup failed', e); }
+  try { setupPWA(); } catch (e) { console.error('PWA setup failed', e); }
   window.addEventListener('hashchange', route);
-  route();
-})();
+  route();                                   // render immediately; never wait on storage
+  db.open().then(() => shell.badge(true)).catch((err) => { shell.badge(false); ui.toast('Local database unavailable: ' + err.message, { type: 'error', sticky: true }); })
+    .finally(() => { db.requestPersistence().catch(() => {}); });
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();

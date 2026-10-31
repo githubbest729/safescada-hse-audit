@@ -5,8 +5,8 @@
   "description": "Digital safety checklists and QHSE compliance tracker for SCADA / Instrumentation & Control engineers.",
   "lang": "en",
   "dir": "ltr",
-  "start_url": "/index.html",
-  "scope": "/",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "orientation": "any",
@@ -14,23 +14,23 @@
   "background_color": "#0b0f19",
   "categories": ["business", "productivity", "utilities"],
   "icons": [
-    {"src": "/icons/icon-72.png", "sizes": "72x72", "type": "image/png"},
-    {"src": "/icons/icon-96.png", "sizes": "96x96", "type": "image/png"},
-    {"src": "/icons/icon-128.png", "sizes": "128x128", "type": "image/png"},
-    {"src": "/icons/icon-144.png", "sizes": "144x144", "type": "image/png"},
-    {"src": "/icons/icon-152.png", "sizes": "152x152", "type": "image/png"},
-    {"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
-    {"src": "/icons/icon-384.png", "sizes": "384x384", "type": "image/png"},
-    {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
-    {"src": "/icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
-    {"src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+    {"src": "./icons/icon-72.png", "sizes": "72x72", "type": "image/png"},
+    {"src": "./icons/icon-96.png", "sizes": "96x96", "type": "image/png"},
+    {"src": "./icons/icon-128.png", "sizes": "128x128", "type": "image/png"},
+    {"src": "./icons/icon-144.png", "sizes": "144x144", "type": "image/png"},
+    {"src": "./icons/icon-152.png", "sizes": "152x152", "type": "image/png"},
+    {"src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "./icons/icon-384.png", "sizes": "384x384", "type": "image/png"},
+    {"src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "./icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
+    {"src": "./icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
   ],
   "shortcuts": [
-    {"name": "New Audit", "short_name": "New Audit", "url": "/index.html#/audits", "icons": [{"src": "/icons/icon-96.png", "sizes": "96x96"}]},
-    {"name": "Report Hazard", "short_name": "Hazard", "url": "/index.html#/hazards", "icons": [{"src": "/icons/icon-96.png", "sizes": "96x96"}]}
+    {"name": "New Audit", "short_name": "New Audit", "url": "./index.html#/audits", "icons": [{"src": "./icons/icon-96.png", "sizes": "96x96"}]},
+    {"name": "Report Hazard", "short_name": "Hazard", "url": "./index.html#/hazards", "icons": [{"src": "./icons/icon-96.png", "sizes": "96x96"}]}
   ],
   "screenshots": [
-    {"src": "/screenshots/wide.png", "sizes": "1280x720", "type": "image/png", "form_factor": "wide", "label": "Executive QHSE dashboard"},
-    {"src": "/screenshots/narrow.png", "sizes": "540x960", "type": "image/png", "form_factor": "narrow", "label": "Digital inspection checklist"}
+    {"src": "./screenshots/wide.png", "sizes": "1280x720", "type": "image/png", "form_factor": "wide", "label": "Executive QHSE dashboard"},
+    {"src": "./screenshots/narrow.png", "sizes": "540x960", "type": "image/png", "form_factor": "narrow", "label": "Digital inspection checklist"}
   ]
 }

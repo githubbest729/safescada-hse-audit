@@ -31,6 +31,7 @@ export function open() {
     };
     req.onerror = () => reject(req.error);
     req.onblocked = () => reject(new Error('Database upgrade blocked — close other tabs of this app.'));
+    setTimeout(() => reject(new Error('IndexedDB open timed out')), 8000);
   });
 }
 
