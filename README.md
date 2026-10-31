@@ -65,6 +65,9 @@ flowchart TD
     CORE --> PWA
     CORE --> STORE
 
+
+```
+
 ### Complete Icon Suite Hierarchy
 Icons reside in `./icons/` and adhere to Chromium and iOS maskable specifications:
 
