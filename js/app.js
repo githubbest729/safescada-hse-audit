@@ -36,31 +36,31 @@ async function dashboard() {
   const days = Math.floor((Date.now() - lti) / 864e5);
   try { localStorage.setItem('ss_snapshot', JSON.stringify({ ts: Date.now(), facility: S.facility, score, open: open.length, overdue: overdue.length, permits, lti: days })); } catch (e) {}
 
+  const st = score == null ? { t: 'No data yet', c: '' } : score >= 90 ? { t: 'On target', c: 'good' } : score >= 75 ? { t: 'Needs attention', c: 'warn' } : { t: 'Below target', c: 'bad' };
+  const cs = overdue.length ? { t: overdue.length + ' overdue', c: 'bad' } : open.length ? { t: 'All within SLA', c: 'warn' } : { t: 'Nothing open', c: 'good' };
+  const ps = permits ? { t: permits + ' in force', c: 'warn' } : { t: 'None active', c: 'good' };
+  const ls = days >= 90 ? { t: 'Excellent streak', c: 'good' } : days >= 30 ? { t: 'Healthy streak', c: 'good' } : { t: 'Streak rebuilding', c: 'warn' };
   view.innerHTML = `
-  <h1>Executive QHSE dashboard</h1>
+  <div class="page-head"><div><h1>Executive QHSE dashboard</h1><p class="sub">${esc(S.facility)}</p></div>
+    <div class="row"><a class="btn btn-primary" href="#/audits">＋ New audit</a><a class="btn" href="#/hazards">⚠ Report hazard</a></div></div>
   <div class="grid">
-    <section class="card tile" aria-label="Compliance index"><span class="label">Compliance index</span>
-      <span class="value ${score == null ? '' : scoreCls(score)}">${score == null ? '—' : score + '%'}</span>
+    <section class="card kpi" aria-label="Compliance index"><div class="kpi-head"><span class="label">Compliance index</span><span class="kpi-ico ${st.c}" aria-hidden="true">✔</span></div>
+      <span class="value ${st.c}">${score == null ? '—' : score + '%'}</span>
       <div class="bar ${score == null ? '' : barCls(score)}"><i style="width:${score ?? 0}%"></i></div>
-      <span class="sub">${recent.length ? 'Average of last ' + recent.length + ' audit(s)' : 'No audits yet'}</span></section>
-    <section class="card tile" aria-label="Open CAPA"><span class="label">Open CAPA</span>
-      <span class="value ${overdue.length ? 'bad' : open.length ? 'warn' : 'good'}">${open.length}</span>
-      <span class="sub">${overdue.length ? overdue.length + ' overdue' : 'None overdue'}</span>
-      <a class="btn btn-sm" href="#/capa">Open tracker</a></section>
-    <section class="card tile" aria-label="Active high-risk permits"><span class="label">Active high-risk permits</span>
-      <span class="value" id="permitVal">${permits}</span>
-      <div class="row"><button class="btn btn-sm" data-permit="-1" aria-label="Decrease permits">−</button><button class="btn btn-sm" data-permit="1" aria-label="Increase permits">+</button></div></section>
-    <section class="card tile" aria-label="Days without LTI"><span class="label">Days without LTI</span>
-      <span class="value ${days >= 30 ? 'good' : 'warn'}">${days}</span>
-      <span class="sub">Since ${fmtDate(lti, false)}</span>
-      <button class="btn btn-sm" id="ltiBtn" type="button">Record LTI</button></section>
+      <span class="pill ${st.c}">${st.t}</span><span class="sub">${recent.length ? 'Average of last ' + recent.length + ' audit(s)' : 'Complete an audit to begin tracking'}</span></section>
+    <section class="card kpi" aria-label="Open CAPA"><div class="kpi-head"><span class="label">Open CAPA</span><span class="kpi-ico ${cs.c}" aria-hidden="true">⛓</span></div>
+      <span class="value ${cs.c}">${open.length}</span><span class="pill ${cs.c}">${cs.t}</span>
+      <div class="row"><a class="btn btn-sm" href="#/capa">Open tracker</a></div></section>
+    <section class="card kpi" aria-label="Active high-risk permits"><div class="kpi-head"><span class="label">High-risk permits</span><span class="kpi-ico ${ps.c}" aria-hidden="true">⚑</span></div>
+      <span class="value" id="permitVal">${permits}</span><span class="pill ${ps.c}">${ps.t}</span>
+      <div class="row"><button class="btn btn-sm" data-permit="-1" aria-label="Decrease permits">−</button><button class="btn btn-sm" data-permit="1" aria-label="Increase permits">＋</button></div></section>
+    <section class="card kpi" aria-label="Days without LTI"><div class="kpi-head"><span class="label">Days without LTI</span><span class="kpi-ico ${ls.c}" aria-hidden="true">✚</span></div>
+      <span class="value ${ls.c}">${days}</span><span class="pill ${ls.c}">${ls.t}</span><span class="sub">Since ${fmtDate(lti, false)}</span>
+      <div class="row"><button class="btn btn-sm" id="ltiBtn" type="button">Record LTI</button></div></section>
   </div>
-  <div class="row" style="margin:var(--s5) 0 var(--s4)">
-    <a class="btn btn-primary" href="#/audits">＋ New audit</a><a class="btn" href="#/hazards">⚠ Report hazard</a>
-  </div>
-  <h2>Recent audits · ${esc(S.facility)}</h2>
+  <div class="section"><h2>Recent audits</h2>
   ${fa.length ? `<div class="list">${fa.slice(0, 5).map(auditRow).join('')}</div>` :
-    empty('📋', 'No audits logged yet for this facility', 'Start your first QHSE inspection.', '<a class="btn btn-primary" href="#/audits">Start your first QHSE inspection</a>')}`;
+    empty('📋', 'No audits logged yet for this facility', 'Start your first QHSE inspection.', '<a class="btn btn-primary" href="#/audits">Start your first QHSE inspection</a>')}</div>`;
 
   view.onclick = async (e) => {
     const p = e.target.closest('[data-permit]');
@@ -90,9 +90,9 @@ async function showAudit(id) {
 /* ---------------- Audits list & templates ---------------- */
 async function audits() {
   const all = (await db.getAll('audits')).filter((a) => a.facility === S.facility).sort((a, b) => b.ts - a.ts);
-  view.innerHTML = `<h1>Digital inspection checklists</h1><p class="muted">Facility: ${esc(S.facility)}</p>
+  view.innerHTML = `<div class="page-head"><div><h1>Digital inspection checklists</h1><p class="sub">${esc(S.facility)}</p></div></div>
   <div class="grid">${eng.TEMPLATES.map((t) => `<article class="card stack"><div style="font-size:2rem" aria-hidden="true">${t.icon}</div><h2>${esc(t.title)}</h2><p class="muted">${t.items.length} checks · ${esc(t.ref)}</p><a class="btn btn-primary" href="#/audit/${t.id}">Start inspection</a></article>`).join('')}</div>
-  <h2 style="margin-top:var(--s5)">History</h2>
+  <h2 class="section">History</h2>
   ${all.length ? `<div class="list">${all.slice(0, 20).map(auditRow).join('')}</div>` : empty('📋', 'No audits logged yet for this facility', 'Start your first QHSE inspection by choosing a template above.')}`;
   view.onclick = (e) => { const v = e.target.closest('[data-view]'); if (v) showAudit(v.dataset.view); };
 }
@@ -106,8 +106,7 @@ async function runAudit(tid) {
   const save = ui.debounce(() => db.setMeta(key, d).catch(() => {}), 500);
   let curItem = null;
 
-  view.innerHTML = `<a href="#/audits" class="btn btn-ghost btn-sm">← Templates</a>
-  <h1>${esc(t.title)}</h1>
+  view.innerHTML = `<div class="page-head"><div><a href="#/audits" class="btn btn-ghost btn-sm" style="margin-left:calc(-1*var(--s3))">← Templates</a><h1>${esc(t.title)}</h1><p class="sub">${esc(S.facility)} · ${esc(t.ref)}</p></div></div>
   <div class="sticky-progress"><div class="row-between"><strong id="prog">0 / ${t.items.length} answered</strong><strong id="live">Score —</strong></div><div class="bar" id="bar"><i style="width:0"></i></div></div>
   <div id="items">${t.items.map((i) => `<article class="item" data-id="${i.id}" data-r="">
     <div class="item-head"><span class="badge sev-${i.sev}">${eng.SEV_LABEL[i.sev]}</span><p>${esc(i.text)}</p></div>
@@ -205,7 +204,7 @@ const PL = ['Rare', 'Unlikely', 'Possible', 'Likely', 'Almost certain'];
 const SL = ['Negligible', 'Minor', 'Moderate', 'Major', 'Catastrophic'];
 async function hazards() {
   const list = (await db.getAll('hazards')).filter((h) => h.facility === S.facility).sort((a, b) => b.ts - a.ts);
-  view.innerHTML = `<h1>Hazard / near-miss report</h1><p class="muted">Fast field submission · 5×5 risk matrix · ${esc(S.facility)}</p>
+  view.innerHTML = `<div class="page-head"><div><h1>Hazard / near-miss report</h1><p class="sub">Fast field submission · 5×5 risk matrix · ${esc(S.facility)}</p></div></div>
   <div class="grid-2"><form class="card" id="hz" novalidate>
     <div class="field"><label for="type">Report type</label><select id="type"><option>Hazard</option><option>Near-miss</option><option>Incident</option></select></div>
     <div class="field"><label for="desc">What did you see?</label><textarea id="desc" rows="3" required placeholder="e.g. Exposed 230VAC terminals in PLC panel after door left open"></textarea></div>
@@ -218,7 +217,7 @@ async function hazards() {
     <div class="scroll"><table class="matrix" aria-label="5 by 5 risk matrix"><thead><tr><th scope="col"></th>${[1, 2, 3, 4, 5].map((s) => `<th scope="col">S${s}</th>`).join('')}</tr></thead><tbody>
     ${[5, 4, 3, 2, 1].map((p) => `<tr><th scope="row">P${p}</th>${[1, 2, 3, 4, 5].map((s) => `<td class="l${eng.riskLevel(p, s).cls}" data-p="${p}" data-s="${s}">${p * s}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
     <p class="hint">High (10–16) and Critical (17–25) risks automatically raise a CAPA.</p></section></div>
-  <h2 style="margin-top:var(--s5)">Recent reports</h2>
+  <h2 class="section">Recent reports</h2>
   ${list.length ? `<div class="list">${list.slice(0, 10).map((h) => `<div class="list-row"><div><strong>${esc(h.type)}</strong> · ${esc(h.desc)}<br><span class="muted">${fmtDate(h.ts)} · ${esc(h.reporter)}${h.loc ? ' · ' + esc(h.loc) : ''}</span></div><span class="badge sev-${h.level}">${eng.SEV_LABEL[h.level]} · ${h.score}</span></div>`).join('')}</div>` : empty('⚠', 'No hazards reported for this facility', 'Spot something unsafe? Submit a report above in under 30 seconds.')}`;
   const upd = () => {
     const p = +$('#prob').value, s = +$('#sev').value, r = eng.riskLevel(p, s);
@@ -244,7 +243,7 @@ async function capa() {
   const filters = ['All', ...eng.STATUSES];
   const rows = all.filter((c) => S.capaFilter === 'All' || c.status === S.capaFilter)
     .sort((a, b) => (a.status === 'Verified Closed') - (b.status === 'Verified Closed') || a.due - b.due);
-  view.innerHTML = `<h1>Corrective action tracker</h1>
+  view.innerHTML = `<div class="page-head"><div><h1>Corrective action tracker</h1><p class="sub">${esc(S.facility)}</p></div></div>
   <div class="chips" role="group" aria-label="Filter by status">${filters.map((f) => `<button class="chip" type="button" data-f="${f}" aria-pressed="${f === S.capaFilter}">${f}${f === 'All' ? ' (' + all.length + ')' : ' (' + all.filter((c) => c.status === f).length + ')'}</button>`).join('')}</div>
   ${rows.length ? `<div class="list">${rows.map((c) => {
     const s = eng.sla(c.due, c.status), idx = eng.STATUSES.indexOf(c.status), closed = idx === 3;
@@ -278,7 +277,7 @@ const MB = (n) => (n / 1048576).toFixed(1) + ' MB';
 async function archive() {
   const [est, na, nh, nc] = await Promise.all([db.storageEstimate(), db.count('audits'), db.count('hazards'), db.count('capas')]);
   const pct = est && est.quota ? Math.max(0.1, est.usage / est.quota * 100) : 0;
-  view.innerHTML = `<h1>Archive & storage</h1>
+  view.innerHTML = `<div class="page-head"><div><h1>Archive & storage</h1><p class="sub">Persistent local database · backups · history</p></div></div>
   <div class="grid-2"><section class="card"><h2>Storage telemetry</h2>
     <p><span class="badge ${est && est.persisted ? 'sev-low' : 'sev-medium'}">${est ? (est.persisted ? '🔒 Persistent storage granted' : 'Best-effort storage (not persisted)') : 'Storage API unavailable'}</span></p>
     ${est ? `<div class="bar"><i style="width:${Math.min(100, pct)}%"></i></div><p class="hint">${MB(est.usage)} used of ${MB(est.quota)} (${pct.toFixed(2)}%)</p>` : ''}
@@ -288,8 +287,10 @@ async function archive() {
   <section class="card"><h2>Backup & restore</h2><div class="stack">
     <button class="btn btn-primary" id="expJson" type="button">⬇ Export full backup (JSON)</button>
     <div class="row"><select id="csvStore" aria-label="CSV dataset" style="flex:1 1 140px"><option value="audits">Audits</option><option value="hazards">Hazards</option><option value="capas">CAPA</option></select><button class="btn" id="expCsv" type="button">⬇ Export CSV</button></div>
-    <div><label for="imp">Import JSON backup (merges by record ID)</label><input id="imp" type="file" accept="application/json,.json"></div></div></section></div>
-  <h2 style="margin-top:var(--s5)">Audit history · all facilities</h2>
+    <div class="drop" id="drop"><span class="ico" aria-hidden="true">📂</span><p><strong>Restore from backup</strong></p><p class="hint" style="margin:0">Drag a .json backup here — records merge by ID</p>
+      <button class="btn" type="button" id="pick">Select Backup File (.json)</button><p class="fname" id="fname" aria-live="polite"></p>
+      <input id="imp" class="visually-hidden" type="file" accept="application/json,.json" tabindex="-1" aria-label="Backup file"></div></div></section></div>
+  <h2 class="section">Audit history · all facilities</h2>
   <div class="field"><label for="q">Search</label><input id="q" type="search" placeholder="Template, facility or inspector"></div><div id="hist"></div>`;
 
   const all = (await db.getAll('audits')).sort((a, b) => b.ts - a.ts);
@@ -311,16 +312,24 @@ async function archive() {
       ui.download('safescada-' + s + '.csv', '\ufeff' + eng.toCSV(out, cols), 'text/csv;charset=utf-8'); ui.toast('CSV exported.', { type: 'success' });
     }
   };
-  $('#imp').onchange = async (e) => {
-    const f = e.target.files[0]; if (!f) return;
+  const importFile = async (f) => {
+    if (!f) return; $('#fname').textContent = f.name;
     try { const r = await db.importAll(JSON.parse(await f.text())); ui.toast(`Imported ${r.audits} audits, ${r.hazards} hazards, ${r.capas} CAPA.`, { type: 'success' }); archive(); }
     catch (err) { ui.toast('Import failed: ' + err.message, { type: 'error' }); }
   };
+  const drop = $('#drop');
+  $('#pick').onclick = () => $('#imp').click();
+  $('#imp').onchange = (e) => importFile(e.target.files[0]);
+  ['dragenter', 'dragover'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', (e) => importFile(e.dataTransfer.files[0]));
 }
 
 /* ---------------- Shell: facility, badge, theme ---------------- */
 function setupShell() {
   ui.applyTheme(); $('#themeBtn').onclick = ui.cycleTheme;
+  const tb = $('.topbar'), setH = () => document.documentElement.style.setProperty('--topbar-h', tb.offsetHeight + 'px');
+  setH(); if ('ResizeObserver' in window) new ResizeObserver(setH).observe(tb); else addEventListener('resize', setH);
   const sel = $('#facility');
   sel.innerHTML = eng.FACILITIES.map((f) => `<option${f.name === S.facility ? ' selected' : ''}>${esc(f.name)}</option>`).join('');
   sel.onchange = () => { S.facility = sel.value; localStorage.setItem('ss_facility', S.facility); route(); };
