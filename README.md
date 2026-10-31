@@ -32,45 +32,53 @@ Built for process facilities, automated substations, utility infrastructure, and
 
 ## System Architecture
 
-```
-+-----------------------------------------------------------------------------------------+
-|                                     CLIENT RUNTIME                                      |
-|                                                                                         |
-|  +-----------------------------------------------------------------------------------+  |
-|  |                             PRESENTATION LAYER (UI)                               |  |
-|  |   [Dashboard Telemetry]  [Digital Checklists]  [Hazard 5x5 Matrix]  [CAPA Board]  |  |
-|  |   -----------------------------------------------------------------------------   |  |
-|  |   Design Tokens (tokens.css)  |  Fluid Flex/Grid (layout.css)  |  A11y Components |  |
-|  +-----------------------------------------+-----------------------------------------+  |
-|                                            |                                            |
-|                                            v                                            |
-|  +-----------------------------------------------------------------------------------+  |
-|  |                           CORE APPLICATION ENGINE (JS)                            |  |
-|  |   +-----------------------+ +---------------------+ +--------------------------+   |  |
-|  |   |     App Lifecycle     | |    Audit Engine     | |       CAPA Manager       |   |  |
-|  |   | (app.js / Router/A11y)| |(audit-engine.js/calc)| |(SLA Timer/Severity Route)|   |  |
-|  |   +-----------------------+ +---------------------+ +--------------------------+   |  |
-|  +-----------------------------------------+-----------------------------------------+  |
-|                                            |                                            |
-|                      +---------------------+---------------------+                      |
-|                      |                                           |                      |
-|                      v                                           v                      |
-|  +---------------------------------------+   +---------------------------------------+  |
-|  |        OFFLINE / PWA RUNTIME          |   |          LOCAL STORAGE ENGINE         |  |
-|  |  +---------------------------------+  |   |  +---------------------------------+  |  |
-|  |  |     Service Worker (sw.js)      |  |   |  |        IndexedDB (db.js)        |  |  |
-|  |  | - Cache-First App Shell         |  |   |  | - Raw IDB Migrations            |  |  |
-|  |  | - Network-First API Fallback    |  |   |  | - 2-3 Year Audit Data Storage   |  |  |
-|  |  | - Offline Page (offline.html)   |  |   |  | - Persistent Storage Request    |  |  |
-|  |  +---------------------------------+  |   |  +---------------------------------+  |  |
-|  |  +---------------------------------+  |   |  +---------------------------------+  |  |
-|  |  |      manifest.webmanifest       |  |   |  |        Backup & Archival        |  |  |
-|  |  | - Standalone Window Controls    |  |   |  | - JSON Schema Import/Export     |  |  |
-|  |  | - Industrial Icon Hierarchy    |  |   |  | - CSV Regulatory Export Table   |  |  |
-|  |  +---------------------------------+  |   |  +---------------------------------+  |  |
-|  +---------------------------------------+   +---------------------------------------+  |
-+-----------------------------------------------------------------------------------------+
-```
+```mermaid
+graph TD
+    %% Styling Definitions
+    classDef runtime fill:#0b0f19,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
+    classDef layer fill:#111827,stroke:#4b5563,stroke-width:1px,stroke-dasharray: 4 4,color:#e5e7eb;
+    classDef component fill:#1f2937,stroke:#f59e0b,stroke-width:1.5px,color:#ffffff;
+    classDef pwa fill:#1e293b,stroke:#10b981,stroke-width:1.5px,color:#ffffff;
+    classDef storage fill:#1e293b,stroke:#06b6d4,stroke-width:1.5px,color:#ffffff;
+
+    subgraph CLIENT_RUNTIME ["Client Runtime (Browser / Installed PWA)"]
+        
+        subgraph UI_LAYER ["Presentation Layer (UI & Styles)"]
+            UI1["Dashboard Telemetry"]:::component
+            UI2["Digital Checklists"]:::component
+            UI3["Hazard 5×5 Matrix"]:::component
+            UI4["CAPA Board"]:::component
+            STYLES["Design Tokens (tokens.css) • Fluid Grid (layout.css) • WCAG Components"]:::component
+        end
+
+        subgraph CORE_ENGINE ["Core Application Engine (Vanilla JS Modules)"]
+            APP["App Lifecycle (app.js)<br/>• Client Router & Hash Watcher<br/>• Install Prompt & Update Handler"]:::component
+            AUDIT["Audit Engine (audit-engine.js)<br/>• Severity Scoring & Calculations<br/>• Auto-CAPA Generator"]:::component
+            CAPA["CAPA Manager<br/>• SLA Live Countdown Timers<br/>• Severity-Based Escalations"]:::component
+        end
+
+        subgraph OFFLINE_LAYER ["Offline & PWA Runtime"]
+            SW["Service Worker (sw.js)<br/>• Cache-First App Shell<br/>• Network-First Fallback<br/>• Offline View (offline.html)"]:::pwa
+            MANIFEST["Web App Manifest<br/>• Standalone Window Controls<br/>• High-DPI Icon Suite"]:::pwa
+        end
+
+        subgraph STORAGE_LAYER ["Local Storage & Archival Engine"]
+            IDB["IndexedDB Database (db.js)<br/>• Raw IDB Auto-Migrations<br/>• navigator.storage.persist()<br/>• 2–3 Year Audit Log Capacity"]:::storage
+            BACKUP["Backup & Regulatory Sync<br/>• Full JSON Export / Merge Import<br/>• CSV Regulatory Audit Reports"]:::storage
+        end
+
+    end
+
+    %% Flow Connections
+    UI_LAYER --> CORE_ENGINE
+    CORE_ENGINE --> OFFLINE_LAYER
+    CORE_ENGINE --> STORAGE_LAYER
+    SW -. Caches Shell .-> UI_LAYER
+    IDB -. Telemetry Feeds .-> UI1
+
+    %% Class Assignments
+    class CLIENT_RUNTIME runtime;
+    class UI_LAYER,CORE_ENGINE,OFFLINE_LAYER,STORAGE_LAYER layer;
 
 ---
 
