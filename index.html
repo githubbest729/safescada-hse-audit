@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SafeSCADA HSE Audit</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Digital safety checklists and QHSE compliance tracker for SCADA / I&C engineers. Works offline.">
+<meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f4f6fa" media="(prefers-color-scheme: light)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SafeSCADA">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/layout.css">
+<link rel="stylesheet" href="/css/components.css">
+<script>try{var t=localStorage.getItem('ss_theme');if(t&&t!=='auto')document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<a class="skip" href="#view">Skip to content</a>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <img src="/favicon.svg" alt="" width="32" height="32">
+      <div class="brand-text"><strong>SafeSCADA</strong><span>HSE Audit</span></div>
+    </div>
+    <span id="syncBadge" class="badge" role="status">Checking…</span>
+    <button id="themeBtn" class="btn btn-icon" type="button" aria-label="Change theme">◐</button>
+    <select id="facility" aria-label="Facility"></select>
+  </header>
+  <nav class="nav" aria-label="Primary">
+    <a href="#/dashboard" data-nav="dashboard"><span aria-hidden="true">▦</span>Dashboard</a>
+    <a href="#/audits" data-nav="audits"><span aria-hidden="true">✔</span>Audits</a>
+    <a href="#/hazards" data-nav="hazards"><span aria-hidden="true">⚠</span>Hazard</a>
+    <a href="#/capa" data-nav="capa"><span aria-hidden="true">⛓</span>CAPA</a>
+    <a href="#/archive" data-nav="archive"><span aria-hidden="true">▤</span>Archive</a>
+  </nav>
+  <main id="view" tabindex="-1" aria-live="polite"></main>
+</div>
+<div id="toasts" aria-live="polite"></div>
+<div id="installBar" class="install" hidden>
+  <div><strong>Install SafeSCADA</strong><span id="installMsg">Add to your device for full-screen, offline field use.</span></div>
+  <div class="row"><button id="installBtn" class="btn btn-primary btn-sm" type="button">Install</button><button id="installNo" class="btn btn-ghost btn-sm" type="button">Not now</button></div>
+</div>
+<dialog id="dlg" aria-modal="true"></dialog>
+<noscript><p style="padding:16px">JavaScript is required to run SafeSCADA HSE Audit.</p></noscript>
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>

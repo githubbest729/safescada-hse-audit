@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Offline · SafeSCADA HSE Audit</title><meta name="theme-color" content="#0f172a">
+<style>
+:root{color-scheme:dark light}body{margin:0;min-height:100dvh;display:grid;place-items:center;font:16px/1.5 system-ui,sans-serif;background:#0b0f19;color:#e8edf7;padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom)}
+main{max-width:480px;width:100%}h1{font-size:1.4rem;margin:.2em 0}.card{background:#0f172a;border:1px solid #2a3550;border-radius:12px;padding:16px;margin:16px 0}
+dl{display:grid;grid-template-columns:1fr auto;gap:8px;margin:0}dt{color:#a3b0c8}dd{margin:0;font-weight:700;color:#fbbf24}
+a.btn{display:inline-flex;align-items:center;min-height:44px;padding:0 20px;background:#f59e0b;color:#0b0f19;border-radius:8px;font-weight:700;text-decoration:none}
+a.btn:focus-visible{outline:3px solid #fff;outline-offset:2px}
+@media (prefers-color-scheme:light){body{background:#f4f6fa;color:#0f172a}.card{background:#fff;border-color:#cbd5e1}dt{color:#475569}dd{color:#92400e}}
+</style></head>
+<body><main>
+<h1>You are offline</h1>
+<p>The network is unavailable. Your inspections, hazards and CAPAs are stored on this device and stay accessible once the app shell is loaded.</p>
+<section class="card" aria-labelledby="t"><h2 id="t" style="font-size:1rem;margin:0 0 8px">Last known telemetry <span id="when" style="font-weight:400;color:#a3b0c8"></span></h2>
+<dl id="tel"><dt>No snapshot yet</dt><dd>—</dd></dl></section>
+<a class="btn" href="/index.html">Open app</a> <a class="btn" href="" onclick="location.reload();return false" style="background:transparent;color:inherit;border:1px solid #2a3550">Retry</a>
+<script>
+try{var s=JSON.parse(localStorage.getItem('ss_snapshot')||'null');if(s){
+document.getElementById('when').textContent='· '+new Date(s.ts).toLocaleString();
+document.getElementById('tel').innerHTML=[['Facility',s.facility],['Compliance index',s.score==null?'—':s.score+'%'],['Open CAPA',s.open],['Overdue CAPA',s.overdue],['High-risk permits',s.permits],['Days without LTI',s.lti]].map(function(r){return '<dt>'+r[0]+'</dt><dd>'+String(r[1]).replace(/</g,'&lt;')+'</dd>'}).join('')}}catch(e){}
+addEventListener('online',function(){location.href='/index.html'});
+</script></main></body></html>
