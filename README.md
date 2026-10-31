@@ -32,54 +32,44 @@ Built for process facilities, automated substations, utility infrastructure, and
 
 ## System Architecture
 
+## System Architecture
+
 ```mermaid
-graph TD
-    %% Styling Definitions
-    classDef runtime fill:#0b0f19,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
-    classDef layer fill:#111827,stroke:#4b5563,stroke-width:1px,stroke-dasharray: 4 4,color:#e5e7eb;
-    classDef component fill:#1f2937,stroke:#f59e0b,stroke-width:1.5px,color:#ffffff;
-    classDef pwa fill:#1e293b,stroke:#10b981,stroke-width:1.5px,color:#ffffff;
-    classDef storage fill:#1e293b,stroke:#06b6d4,stroke-width:1.5px,color:#ffffff;
+flowchart TD
+    subgraph CLIENT_RUNTIME["Client Runtime (Browser / Installed PWA)"]
+        direction TB
 
-    subgraph CLIENT_RUNTIME ["Client Runtime (Browser / Installed PWA)"]
-        
-        subgraph UI_LAYER ["Presentation Layer (UI & Styles)"]
-            UI1["Dashboard Telemetry"]:::component
-            UI2["Digital Checklists"]:::component
-            UI3["Hazard 5×5 Matrix"]:::component
-            UI4["CAPA Board"]:::component
-            STYLES["Design Tokens (tokens.css) • Fluid Grid (layout.css) • WCAG Components"]:::component
+        subgraph UI_LAYER["Presentation Layer (UI & Styles)"]
+            UI1["Dashboard Telemetry"]
+            UI2["Digital Checklists"]
+            UI3["Hazard 5x5 Matrix"]
+            UI4["CAPA Board"]
+            STYLES["Design Tokens / Fluid CSS Grid / WCAG Tokens"]
         end
 
-        subgraph CORE_ENGINE ["Core Application Engine (Vanilla JS Modules)"]
-            APP["App Lifecycle (app.js)<br/>• Client Router & Hash Watcher<br/>• Install Prompt & Update Handler"]:::component
-            AUDIT["Audit Engine (audit-engine.js)<br/>• Severity Scoring & Calculations<br/>• Auto-CAPA Generator"]:::component
-            CAPA["CAPA Manager<br/>• SLA Live Countdown Timers<br/>• Severity-Based Escalations"]:::component
+        subgraph CORE_ENGINE["Core Application Engine (Vanilla JS Modules)"]
+            APP["App Lifecycle (app.js)"]
+            AUDIT["Audit Engine (audit-engine.js)"]
+            CAPA["CAPA Manager (SLA Timers)"]
         end
 
-        subgraph OFFLINE_LAYER ["Offline & PWA Runtime"]
-            SW["Service Worker (sw.js)<br/>• Cache-First App Shell<br/>• Network-First Fallback<br/>• Offline View (offline.html)"]:::pwa
-            MANIFEST["Web App Manifest<br/>• Standalone Window Controls<br/>• High-DPI Icon Suite"]:::pwa
+        subgraph OFFLINE_LAYER["Offline & PWA Runtime"]
+            SW["Service Worker (sw.js) - Cache Shell"]
+            MANIFEST["Web App Manifest - Standalone"]
         end
 
-        subgraph STORAGE_LAYER ["Local Storage & Archival Engine"]
-            IDB["IndexedDB Database (db.js)<br/>• Raw IDB Auto-Migrations<br/>• navigator.storage.persist()<br/>• 2–3 Year Audit Log Capacity"]:::storage
-            BACKUP["Backup & Regulatory Sync<br/>• Full JSON Export / Merge Import<br/>• CSV Regulatory Audit Reports"]:::storage
+        subgraph STORAGE_LAYER["Local Storage & Archival Engine"]
+            IDB["IndexedDB Database (db.js)"]
+            BACKUP["Backup & Regulatory Sync (JSON / CSV)"]
         end
 
     end
 
-    %% Flow Connections
     UI_LAYER --> CORE_ENGINE
     CORE_ENGINE --> OFFLINE_LAYER
     CORE_ENGINE --> STORAGE_LAYER
-    SW -. Caches Shell .-> UI_LAYER
-    IDB -. Telemetry Feeds .-> UI1
-
-    %% Class Assignments
-    class CLIENT_RUNTIME runtime;
-    class UI_LAYER,CORE_ENGINE,OFFLINE_LAYER,STORAGE_LAYER layer;
-
+    SW -. Cache Fallback .-> UI_LAYER
+    IDB -. Telemetry Stats .-> UI1
 ---
 
 ## App Icon & Brand Assets
