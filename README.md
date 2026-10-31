@@ -36,67 +36,34 @@ Built for process facilities, automated substations, utility infrastructure, and
 
 ```mermaid
 flowchart TD
-    subgraph CLIENT_RUNTIME["Client Runtime (Browser / Installed PWA)"]
-        direction TB
-
-        subgraph UI_LAYER["Presentation Layer (UI & Styles)"]
+    subgraph CR["Client Runtime"]
+        subgraph UI["Presentation Layer"]
             UI1["Dashboard Telemetry"]
             UI2["Digital Checklists"]
             UI3["Hazard 5x5 Matrix"]
             UI4["CAPA Board"]
-            STYLES["Design Tokens / Fluid CSS Grid / WCAG Tokens"]
         end
 
-        subgraph CORE_ENGINE["Core Application Engine (Vanilla JS Modules)"]
-            APP["App Lifecycle (app.js)"]
-            AUDIT["Audit Engine (audit-engine.js)"]
-            CAPA["CAPA Manager (SLA Timers)"]
+        subgraph CORE["Core Engine"]
+            APP["App Lifecycle"]
+            AUDIT["Audit Engine"]
+            CAPA["CAPA Manager"]
         end
 
-        subgraph OFFLINE_LAYER["Offline & PWA Runtime"]
-            SW["Service Worker (sw.js) - Cache Shell"]
-            MANIFEST["Web App Manifest - Standalone"]
+        subgraph PWA["PWA Runtime"]
+            SW["Service Worker"]
+            MAN["Web Manifest"]
         end
 
-        subgraph STORAGE_LAYER["Local Storage & Archival Engine"]
-            IDB["IndexedDB Database (db.js)"]
-            BACKUP["Backup & Regulatory Sync (JSON / CSV)"]
+        subgraph STORE["Storage Engine"]
+            IDB["IndexedDB"]
+            BAK["Backup & Export"]
         end
-
     end
 
-    UI_LAYER --> CORE_ENGINE
-    CORE_ENGINE --> OFFLINE_LAYER
-    CORE_ENGINE --> STORAGE_LAYER
-    SW -. Cache Fallback .-> UI_LAYER
-    IDB -. Telemetry Stats .-> UI1
----
-
-## App Icon & Brand Assets
-
-### Vector Brand Icon (`favicon.svg`)
-The primary asset uses an industrial safety shield with an embedded SCADA automation node matrix:
-
-```xml
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0f172a"/>
-      <stop offset="100%" stop-color="#1e293b"/>
-    </linearGradient>
-    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#f59e0b"/>
-      <stop offset="100%" stop-color="#d97706"/>
-    </linearGradient>
-  </defs>
-  <!-- Base Shield Badge -->
-  <path d="M256 32L64 96v144c0 141.6 81.8 245.5 192 272 110.2-26.5 192-130.4 192-272V96L256 32z" fill="url(#shieldGrad)" stroke="url(#amberGrad)" stroke-width="16"/>
-  <!-- Safety Cross Core -->
-  <path d="M216 160h80v64h64v80h-64v64h-80v-64h-64v-80h64v-64z" fill="url(#amberGrad)"/>
-  <!-- Central Automation Interconnect Node -->
-  <circle cx="256" cy="262" r="18" fill="#0f172a" stroke="#10b981" stroke-width="6"/>
-</svg>
-```
+    UI --> CORE
+    CORE --> PWA
+    CORE --> STORE
 
 ### Complete Icon Suite Hierarchy
 Icons reside in `./icons/` and adhere to Chromium and iOS maskable specifications:
