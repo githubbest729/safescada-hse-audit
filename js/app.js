@@ -21,7 +21,7 @@ async function route() {
   document.body.classList.toggle('has-dock', name === 'audit');
   try { await (routes[name] || dashboard)(arg); }
   catch (err) { console.error(err); view.innerHTML = empty('⚠', 'Something went wrong', err.message || String(err)); }
-  view.focus({ preventScroll: true }); window.scrollTo(0, 0);
+  view.focus({ preventScroll: true }); window.scrollTo(0, 0); updateNavBadge();
 }
 
 /* ---------------- Dashboard ---------------- */
@@ -295,17 +295,19 @@ async function capa() {
     const s = eng.sla(c.due, c.status), idx = eng.STATUSES.indexOf(c.status), closed = idx === 3;
     return `<article class="card" data-id="${c.id}"><div class="row"><span class="badge sev-${c.severity}">${eng.SEV_LABEL[c.severity]}</span><span class="badge ${closed ? 'st-closed' : 'st'}">${c.status}</span><span class="sla ${s.cls}">${s.text}</span></div>
     <h3 style="margin-top:var(--s2)">${esc(c.title)}</h3>
-    <p class="muted">Source: ${c.source} · Due ${fmtDate(c.due, false)}${c.assignee ? ' · Assigned to ' + esc(c.assignee) : ''}${c.signoff ? ' · Signed off by ' + esc(c.signoff.by) : ''}</p>
+    <p class="muted">Source: ${c.source} · Due ${fmtDate(c.due, false)}${c.assignee ? ' · Assigned to ' + esc(c.assignee) : ''}${c.closedAt ? ' · Closed by ' + esc(c.closedBy) + ' on ' + fmtDate(c.closedAt, false) : c.signoff ? ' · Signed off by ' + esc(c.signoff.by) : ''}</p>
     ${stepper(idx)}
-    <div class="row">${closed ? '' : `<button class="btn btn-primary btn-sm" data-adv="${c.id}" type="button">${['Assign…', 'Start rectification…', 'Verify & close…'][idx]}</button>`}<button class="btn btn-sm" data-hist="${c.id}" type="button">History</button></div></article>`;
+    <div class="row">${closed ? '' : `<button class="btn btn-primary btn-sm" data-adv="${c.id}" type="button">${['Assign…', 'Start rectification…', 'Verify & close…'][idx]}</button>`}${c.signatureData ? `<button class="btn btn-sm" data-sign="${c.id}" type="button">View sign-off</button>` : ''}<button class="btn btn-sm" data-hist="${c.id}" type="button">History</button></div></article>`;
   }).join('')}</div>` : empty('⛓', all.length ? 'No CAPA with this status' : 'No corrective actions for this facility', all.length ? 'Try another filter.' : 'Failed checklist items and High/Critical hazards appear here automatically.')}`;
 
   view.onclick = async (e) => {
     const f = e.target.closest('[data-f]'); if (f) { S.capaFilter = f.dataset.f; return capa(); }
+    const sg = e.target.closest('[data-sign]'); if (sg) return showSignoff(all.find((x) => x.id === sg.dataset.sign));
     const h = e.target.closest('[data-hist]');
     if (h) { const c = all.find((x) => x.id === h.dataset.hist); return ui.showHTML('History', `<ol>${c.history.map((x) => `<li><strong>${esc(x.status)}</strong> · ${fmtDate(x.ts)}${x.by ? ' · ' + esc(x.by) : ''}${x.note ? '<br><span class="muted">' + esc(x.note) + '</span>' : ''}</li>`).join('')}</ol>`); }
     const a = e.target.closest('[data-adv]'); if (!a) return;
     const c = all.find((x) => x.id === a.dataset.adv), idx = eng.STATUSES.indexOf(c.status), next = eng.STATUSES[idx + 1];
+    if (idx === 2) return verifyClose(c);
     const cfg = [
       { title: 'Assign corrective action', fields: [{ name: 'by', label: 'Assigned to (engineer)', required: true }, { name: 'note', label: 'Instruction', type: 'textarea' }] },
       { title: 'Start rectification', fields: [{ name: 'by', label: 'Your name', required: true, value: c.assignee }, { name: 'note', label: 'Action plan / work order ref', type: 'textarea', required: true }] },
@@ -323,6 +325,8 @@ const MB = (n) => (n / 1048576).toFixed(1) + ' MB';
 async function archive() {
   const [est, na, nh, nc] = await Promise.all([db.storageEstimate(), db.count('audits'), db.count('hazards'), db.count('capas')]);
   const pct = est && est.quota ? Math.max(0.1, est.usage / est.quota * 100) : 0;
+  const last = await db.getMeta('lastExport', null).catch(() => null), bd = last ? Math.floor((Date.now() - last) / 864e5) : null;
+  const bk = last == null ? { c: 'bad', t: 'No backup exported yet' } : bd > 90 ? { c: 'bad', t: 'Last backup ' + bd + ' days ago — overdue' } : bd > 30 ? { c: 'warn', t: 'Last backup ' + bd + ' days ago' } : { c: 'good', t: bd === 0 ? 'Backed up today' : 'Last backup ' + bd + ' day(s) ago' };
   view.innerHTML = `<div class="page-head"><div><h1>Archive & storage</h1><p class="sub">Persistent local database · backups · history</p></div></div>
   <div class="grid-2"><section class="card"><h2>Storage telemetry</h2>
     <p><span class="badge ${est && est.persisted ? 'sev-low' : 'sev-medium'}">${est ? (est.persisted ? '🔒 Persistent storage granted' : 'Best-effort storage (not persisted)') : 'Storage API unavailable'}</span></p>
@@ -331,37 +335,61 @@ async function archive() {
     <p class="hint">IndexedDB comfortably holds 10,000+ records. Export a JSON backup regularly for 2–3 year regulatory retention.</p>
     ${est && !est.persisted ? '<button class="btn btn-primary" id="persist" type="button">Request persistent storage</button>' : ''}</section>
   <section class="card"><h2>Backup & restore</h2><div class="stack">
+    <span class="pill ${bk.c}" id="bkPill">${bk.t}</span>
     <button class="btn btn-primary" id="expJson" type="button">⬇ Export full backup (JSON)</button>
     <div class="row"><select id="csvStore" aria-label="CSV dataset" style="flex:1 1 140px"><option value="audits">Audits</option><option value="hazards">Hazards</option><option value="capas">CAPA</option></select><button class="btn" id="expCsv" type="button">⬇ Export CSV</button></div>
     <div class="drop" id="drop"><span class="ico" aria-hidden="true">📂</span><p><strong>Restore from backup</strong></p><p class="hint" style="margin:0">Drag a .json backup here — records merge by ID</p>
       <button class="btn" type="button" id="pick">Select Backup File (.json)</button><p class="fname" id="fname" aria-live="polite"></p>
       <input id="imp" class="visually-hidden" type="file" accept="application/json,.json" tabindex="-1" aria-label="Backup file"></div></div></section></div>
-  <h2 class="section">Audit history · all facilities</h2>
-  <div class="field"><label for="q">Search</label><input id="q" type="search" placeholder="Template, facility or inspector"></div><div id="hist"></div>`;
+  <h2 class="section">History · all facilities</h2>
+  <div class="chips" role="group" aria-label="Record type"><button class="chip" type="button" data-tab="audits" aria-pressed="true">Audits (${na})</button><button class="chip" type="button" data-tab="hazards" aria-pressed="false">Hazards (${nh})</button><button class="chip" type="button" data-tab="capas" aria-pressed="false">CAPA (${nc})</button></div>
+  <div class="field"><label for="q">Search</label><input id="q" type="search" placeholder="Title, facility, person or status"></div><div id="hist"></div>`;
 
-  const all = (await db.getAll('audits')).sort((a, b) => b.ts - a.ts);
+  const data = {
+    audits: (await db.getAll('audits')).sort((a, b) => b.ts - a.ts),
+    hazards: (await db.getAll('hazards')).sort((a, b) => b.ts - a.ts),
+    capas: (await db.getAll('capas')).sort((a, b) => b.created - a.created)
+  };
+  const hazRow = (h) => `<div class="list-row"><div><strong>${esc(h.type)}</strong> · ${esc(h.desc)}<br><span class="muted">${fmtDate(h.ts)} · ${esc(h.reporter)} · ${esc(h.facility)}${h.loc ? ' · ' + esc(h.loc) : ''}</span></div><span class="badge sev-${h.level}">${eng.SEV_LABEL[h.level]} · ${h.score}</span></div>`;
+  const capRow = (c) => `<div class="list-row"><div><strong>${esc(c.title)}</strong><br><span class="muted">${esc(c.facility)} · Due ${fmtDate(c.due, false)}${c.closedAt ? ' · Closed by ' + esc(c.closedBy) + ' on ' + fmtDate(c.closedAt, false) : c.assignee ? ' · ' + esc(c.assignee) : ''}</span></div><span class="badge sev-${c.severity}">${eng.SEV_LABEL[c.severity]}</span><span class="badge ${c.status === 'Verified Closed' ? 'st-closed' : 'st'}">${esc(c.status)}</span>${c.signatureData ? `<button class="btn btn-sm" data-sign="${c.id}" type="button">Sign-off</button>` : ''}</div>`;
+  const rowFn = { audits: auditRow, hazards: hazRow, capas: capRow };
+  const hay = { audits: (a) => a.templateTitle + a.facility + a.inspector, hazards: (h) => h.type + h.desc + h.facility + h.reporter + (h.loc || ''), capas: (c) => c.title + c.facility + c.status + (c.assignee || '') + (c.closedBy || '') };
+  const emptyMsg = { audits: ['🗄', 'No audits logged yet', 'Completed inspections are archived here.'], hazards: ['⚠', 'No hazard reports yet', 'Reported hazards and near-misses are archived here.'], capas: ['⛓', 'No CAPA records yet', 'Corrective actions are archived here.'] };
+  let tab = 'audits', limit = 50;
   const drawHist = () => {
     const q = $('#q').value.toLowerCase().trim();
-    const r = all.filter((a) => !q || (a.templateTitle + a.facility + a.inspector).toLowerCase().includes(q));
-    $('#hist').innerHTML = r.length ? `<div class="list">${r.slice(0, 100).map(auditRow).join('')}</div>${r.length > 100 ? `<p class="hint">Showing latest 100 of ${r.length}. Use search or export for the full archive.</p>` : ''}` : empty('🗄', 'No audits logged yet', 'Completed inspections are archived here.');
+    const r = data[tab].filter((x) => !q || hay[tab](x).toLowerCase().includes(q));
+    $('#hist').innerHTML = r.length
+      ? `<div class="list">${r.slice(0, limit).map(rowFn[tab]).join('')}</div>${r.length > limit ? `<div class="row" style="justify-content:center;margin-top:var(--s3)"><button class="btn" type="button" data-more>Show 50 more (${r.length - limit} remaining)</button></div>` : ''}`
+      : empty(...(q ? ['🔎', 'No matches', 'Try a different search term.'] : emptyMsg[tab]));
   };
-  drawHist(); $('#q').oninput = ui.debounce(drawHist, 150);
+  drawHist(); $('#q').oninput = ui.debounce(() => { limit = 50; drawHist(); }, 150);
 
   view.onclick = async (e) => {
     const v = e.target.closest('[data-view]'); if (v) return showAudit(v.dataset.view);
+    const tb = e.target.closest('[data-tab]'); if (tb) { tab = tb.dataset.tab; limit = 50; $$('[data-tab]').forEach((c) => c.setAttribute('aria-pressed', String(c === tb))); return drawHist(); }
+    if (e.target.closest('[data-more]')) { limit += 50; return drawHist(); }
+    const sg = e.target.closest('[data-sign]'); if (sg) return showSignoff(data.capas.find((x) => x.id === sg.dataset.sign));
     if (e.target.closest('#persist')) { const r = await db.requestPersistence(); ui.toast(r.persisted ? 'Persistent storage granted.' : 'Browser declined persistence. Export backups regularly.', { type: r.persisted ? 'success' : 'warn' }); return archive(); }
-    if (e.target.closest('#expJson')) { ui.download('safescada-backup-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(await db.exportAll())); await db.setMeta('lastExport', Date.now()); return ui.toast('Backup exported.', { type: 'success' }); }
+    if (e.target.closest('#expJson')) { ui.download('safescada-backup-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(await db.exportAll())); await db.setMeta('lastExport', Date.now()); ui.toast('Backup exported.', { type: 'success' }); return archive(); }
     if (e.target.closest('#expCsv')) {
       const s = $('#csvStore').value, rows = await db.getAll(s);
-      const cols = { audits: ['id', 'ts', 'facility', 'templateTitle', 'inspector', 'score', 'failCount', 'critFails', 'notes'], hazards: ['id', 'ts', 'facility', 'type', 'desc', 'loc', 'reporter', 'p', 's', 'score', 'level'], capas: ['id', 'created', 'due', 'facility', 'severity', 'title', 'status', 'assignee', 'source', 'sourceId'] }[s];
+      const cols = { audits: ['id', 'ts', 'facility', 'templateTitle', 'inspector', 'score', 'failCount', 'critFails', 'notes'], hazards: ['id', 'ts', 'facility', 'type', 'desc', 'loc', 'reporter', 'p', 's', 'score', 'level'], capas: ['id', 'created', 'due', 'facility', 'severity', 'title', 'status', 'assignee', 'source', 'sourceId', 'closedAt', 'closedBy', 'closedById', 'evidenceNote'] }[s];
       const out = rows.map((r) => { const o = { ...r }; ['ts', 'created', 'due'].forEach((k) => { if (o[k]) o[k] = new Date(o[k]).toISOString(); }); return o; });
       ui.download('safescada-' + s + '.csv', '\ufeff' + eng.toCSV(out, cols), 'text/csv;charset=utf-8'); ui.toast('CSV exported.', { type: 'success' });
     }
   };
   const importFile = async (f) => {
     if (!f) return; $('#fname').textContent = f.name;
-    try { const r = await db.importAll(JSON.parse(await f.text())); ui.toast(`Imported ${r.audits} audits, ${r.hazards} hazards, ${r.capas} CAPA.`, { type: 'success' }); archive(); }
-    catch (err) { ui.toast('Import failed: ' + err.message, { type: 'error' }); }
+    try {
+      const j = JSON.parse(await f.text());
+      if (!j || j.app !== 'safescada-hse-audit' || !j.stores) throw new Error('Not a SafeSCADA HSE backup file.');
+      const n = (k) => (Array.isArray(j.stores[k]) ? j.stores[k].length : 0);
+      const ok = await ui.ask({ title: 'Restore from this backup?', intro: `${f.name} · exported ${j.exportedAt ? fmtDate(j.exportedAt) : 'on an unknown date'}. It contains ${n('audits')} audits, ${n('hazards')} hazard reports and ${n('capas')} CAPA records. Records with the same ID are overwritten; everything else on this device is kept.`, submit: 'Merge into this device' });
+      if (!ok) { $('#fname').textContent = ''; return; }
+      const r = await db.importAll(j);
+      ui.toast(`Imported ${r.audits} audits, ${r.hazards} hazards, ${r.capas} CAPA.`, { type: 'success' }); await refreshSnapshot(); archive();
+    } catch (err) { ui.toast('Import failed: ' + err.message, { type: 'error' }); }
   };
   const drop = $('#drop');
   $('#pick').onclick = () => $('#imp').click();
@@ -411,6 +439,77 @@ function setupPWA() {
   if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone && !snoozed()) {
     $('#installMsg').textContent = 'Tap Share, then “Add to Home Screen”.'; $('#installBtn').hidden = true; setTimeout(show, 30000);
   }
+}
+
+/* ---------------- CAPA verification, sign-off view, live metrics ---------------- */
+async function refreshSnapshot() {
+  try {
+    const [audits, capas] = await Promise.all([db.getAll('audits'), db.getAll('capas')]);
+    const fa = audits.filter((a) => a.facility === S.facility).sort((a, b) => b.ts - a.ts).slice(0, 10);
+    const open = capas.filter((c) => c.facility === S.facility && c.status !== 'Verified Closed');
+    const lti = await db.getMeta('lti:' + S.facility, null), permits = await db.getMeta('permits:' + S.facility, 0);
+    localStorage.setItem('ss_snapshot', JSON.stringify({ ts: Date.now(), facility: S.facility, score: fa.length ? Math.round(fa.reduce((t, a) => t + a.score, 0) / fa.length) : null, open: open.length, overdue: open.filter((c) => c.due < Date.now()).length, permits, lti: lti ? Math.floor((Date.now() - lti) / 864e5) : 0 }));
+  } catch (e) {}
+}
+async function updateNavBadge() {
+  const b = $('#capaBadge'); if (!b) return;
+  try {
+    const open = (await db.getAll('capas')).filter((c) => c.facility === S.facility && c.status !== 'Verified Closed');
+    const over = open.filter((c) => c.due < Date.now()).length;
+    b.hidden = !open.length; b.className = 'nav-badge' + (over ? ' over' : '');
+    b.innerHTML = open.length + '<span class="visually-hidden"> open' + (over ? ', ' + over + ' overdue' : '') + '</span>';
+  } catch (e) {}
+}
+function showSignoff(c) {
+  if (!c) return;
+  ui.showHTML('CAPA sign-off', `<p><strong>${esc(c.title)}</strong></p>
+    <dl class="kv"><dt>Facility</dt><dd>${esc(c.facility)}</dd><dt>Closed by</dt><dd>${esc(c.closedBy || (c.signoff && c.signoff.by) || '—')}${c.closedById ? ' (' + esc(c.closedById) + ')' : ''}</dd><dt>Closed at</dt><dd>${c.closedAt ? fmtDate(c.closedAt) : '—'}</dd><dt>Evidence</dt><dd>${esc(c.evidenceNote || '—')}</dd></dl>
+    ${c.evidencePhoto ? `<p class="label" style="margin-top:var(--s3)">Evidence photo</p><img class="signoff-img" alt="Evidence photo" src="${c.evidencePhoto}">` : ''}
+    <p class="label" style="margin-top:var(--s3)">Signature</p>${c.signatureData ? `<img class="signoff-img" alt="Verifier signature" src="${c.signatureData}">` : '<p class="muted">No signature stored.</p>'}`);
+}
+function verifyClose(c) {
+  const d = ui.prepDialog('', () => { d.onclick = null; });
+  d.setAttribute('aria-labelledby', 'vct');
+  const overdue = c.due < Date.now();
+  d.innerHTML = `<form class="vc" novalidate><h2 id="vct">Verify &amp; close CAPA</h2>
+    <p class="muted" style="margin-bottom:var(--s2)">${esc(c.title)}</p>
+    ${overdue ? '<p><span class="badge sev-high">Overdue — mention the cause and delay in your evidence note</span></p>' : ''}
+    <div class="grid-2" style="gap:0 var(--s3)"><div class="field"><label for="vc_name">Verifier name</label><input id="vc_name" autocomplete="name" required value="${esc(localStorage.getItem('ss_user') || '')}"></div>
+      <div class="field"><label for="vc_id">Engineer ID</label><input id="vc_id" placeholder="e.g. ENG-1042" value="${esc(localStorage.getItem('ss_userid') || '')}"></div></div>
+    <div class="field"><label for="vc_note">Verification evidence</label><textarea id="vc_note" rows="3" required placeholder="What was checked and how the fix was confirmed"></textarea></div>
+    <div class="field"><label>Evidence photo (optional)</label><div class="row"><button type="button" class="btn btn-sm" id="vc_pick">📷 Attach photo</button><span class="hint" id="vc_pname" style="margin:0"></span></div>
+      <input type="file" id="vc_file" accept="image/*" capture="environment" class="visually-hidden" tabindex="-1" aria-label="Evidence photo"><div class="thumbs" id="vc_thumb"></div></div>
+    <label for="vc_sig">Verifier signature</label><canvas id="vc_sig" class="sig" aria-label="Signature pad"></canvas>
+    <div class="row" style="margin-top:var(--s2)"><button type="button" class="btn btn-sm" id="vc_clear">Clear signature</button></div>
+    <p class="err" id="vc_err" role="alert"></p>
+    <div class="dlg-actions"><button type="button" class="btn btn-ghost" id="vc_cancel">Cancel</button><button type="submit" class="btn btn-primary">Verify &amp; close</button></div></form>`;
+  d.showModal();
+  const sig = ui.initSignature($('#vc_sig', d)); let photo = null;
+  const err = (msg, el) => { $('#vc_err', d).textContent = msg; if (el) { el.closest('.field') && el.closest('.field').classList.add('invalid'); el.focus(); } };
+  $('#vc_cancel', d).onclick = () => d.close();
+  $('#vc_clear', d).onclick = () => sig.clear();
+  $('#vc_pick', d).onclick = () => $('#vc_file', d).click();
+  $('#vc_file', d).onchange = async (e) => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    try { photo = await ui.fileToJpeg(f); $('#vc_thumb', d).innerHTML = `<img alt="Evidence photo preview" src="${photo}">`; $('#vc_pname', d).textContent = f.name; } catch (x) { err(x.message); }
+  };
+  $('.vc', d).onsubmit = async (e) => {
+    e.preventDefault(); $$('.invalid', d).forEach((n) => n.classList.remove('invalid')); $('#vc_err', d).textContent = '';
+    const nameEl = $('#vc_name', d), noteEl = $('#vc_note', d), name = nameEl.value.trim(), note = noteEl.value.trim();
+    if (!name) return err('Enter the verifier name.', nameEl);
+    if (!note) return err('Describe the verification evidence.', noteEl);
+    if (sig.isEmpty()) return err('A signature is required to close this CAPA.', $('#vc_sig', d));
+    const now = Date.now(), id = $('#vc_id', d).value.trim();
+    Object.assign(c, { status: 'Verified Closed', closedAt: new Date(now).toISOString(), closedBy: name, closedById: id, signatureData: sig.data(), evidenceNote: note, signoff: { by: name, ts: now } });
+    if (photo) c.evidencePhoto = photo;
+    c.history.push({ ts: now, status: 'Verified Closed', by: name, note });
+    try { await db.put('capas', c); } catch (x) { return err('Could not save: ' + x.message); }
+    localStorage.setItem('ss_user', name); localStorage.setItem('ss_userid', id);
+    await refreshSnapshot(); d.close();
+    ui.toast('CAPA verified and closed by ' + name + '.', { type: 'success' });
+    capa(); updateNavBadge();
+  };
+  $('#vc_name', d).focus();
 }
 
 /* ---------------- Charts ---------------- */
@@ -482,6 +581,7 @@ async function loadDemo() {
   for (const f of eng.FACILITIES) { await db.setMeta('permits:' + f.name, d.permits[f.name]); await db.setMeta('lti:' + f.name, d.lti[f.name]); }
   await db.setMeta('demo:meta', true);
   localStorage.setItem('ss_onboarded', '1');
+  await refreshSnapshot();
   ui.toast('Demo data loaded for all facilities. Remove it any time in Settings → Reset demo data.', { type: 'success', ms: 7000 });
   if (location.hash.startsWith('#/dashboard') || !location.hash) route(); else location.hash = '#/dashboard';
 }
