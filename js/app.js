@@ -296,7 +296,7 @@ async function capa() {
     return `<article class="card" data-id="${c.id}"><div class="row"><span class="badge sev-${c.severity}">${eng.SEV_LABEL[c.severity]}</span><span class="badge ${closed ? 'st-closed' : 'st'}">${c.status}</span><span class="sla ${s.cls}">${s.text}</span></div>
     <h3 style="margin-top:var(--s2)">${esc(c.title)}</h3>
     <p class="muted">Source: ${c.source} · Due ${fmtDate(c.due, false)}${c.assignee ? ' · Assigned to ' + esc(c.assignee) : ''}${c.signoff ? ' · Signed off by ' + esc(c.signoff.by) : ''}</p>
-    <ol class="stepper" aria-label="Status pipeline">${eng.STATUSES.map((n, i) => `<li class="${i < idx || closed ? 'done' : i === idx ? 'cur' : ''}">${n}</li>`).join('')}</ol>
+    ${stepper(idx)}
     <div class="row">${closed ? '' : `<button class="btn btn-primary btn-sm" data-adv="${c.id}" type="button">${['Assign…', 'Start rectification…', 'Verify & close…'][idx]}</button>`}<button class="btn btn-sm" data-hist="${c.id}" type="button">History</button></div></article>`;
   }).join('')}</div>` : empty('⛓', all.length ? 'No CAPA with this status' : 'No corrective actions for this facility', all.length ? 'Try another filter.' : 'Failed checklist items and High/Critical hazards appear here automatically.')}`;
 
@@ -415,16 +415,46 @@ function setupPWA() {
 
 /* ---------------- Charts ---------------- */
 const f1 = (n) => n.toFixed(1);
+// Monotone cubic spline (Fritsch–Carlson): smooth curve that never overshoots the 0–100 range
+function spline(P) {
+  const n = P.length; if (n < 2) return '';
+  const dx = [], m = [], t = [];
+  for (let i = 0; i < n - 1; i++) { dx[i] = P[i + 1][0] - P[i][0]; m[i] = (P[i + 1][1] - P[i][1]) / dx[i]; }
+  t[0] = m[0]; t[n - 1] = m[n - 2];
+  for (let i = 1; i < n - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (m[i] === 0) { t[i] = t[i + 1] = 0; continue; }
+    const a = t[i] / m[i], b = t[i + 1] / m[i], q = a * a + b * b;
+    if (q > 9) { const k = 3 / Math.sqrt(q); t[i] = k * a * m[i]; t[i + 1] = k * b * m[i]; }
+  }
+  let d = `M${f1(P[0][0])} ${f1(P[0][1])}`;
+  for (let i = 0; i < n - 1; i++) { const h = dx[i] / 3; d += ` C${f1(P[i][0] + h)} ${f1(P[i][1] + t[i] * h)} ${f1(P[i + 1][0] - h)} ${f1(P[i + 1][1] - t[i + 1] * h)} ${f1(P[i + 1][0])} ${f1(P[i + 1][1])}`; }
+  return d;
+}
 function trendChart(fa) {
   const pts = fa.slice(0, 12).reverse();
   if (!pts.length) return '<p class="muted">Complete an audit to see your compliance trend.</p>';
-  const W = 420, H = 220, L = 34, R = 12, T = 12, B = 28, iw = W - L - R, ih = H - T - B;
+  const W = 420, H = 220, L = 34, R = 14, T = 22, B = 28, iw = W - L - R, ih = H - T - B;
   const x = (i) => L + (pts.length === 1 ? iw / 2 : i * iw / (pts.length - 1)), y = (v) => T + ih - (v / 100) * ih;
+  const P = pts.map((a, i) => [x(i), y(a.score)]);
   const grid = [0, 25, 50, 75, 100].map((v) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--border)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`).join('');
-  const line = pts.map((a, i) => `${i ? 'L' : 'M'}${f1(x(i))} ${f1(y(a.score))}`).join(' ');
-  const area = pts.length > 1 ? `<path d="${line} L${f1(x(pts.length - 1))} ${y(0)} L${f1(x(0))} ${y(0)} Z" fill="var(--amber)" opacity=".13"/>` : '';
-  const dots = pts.map((a, i) => `<circle cx="${f1(x(i))}" cy="${f1(y(a.score))}" r="4.5" fill="var(--surface)" stroke="${a.score >= 90 ? 'var(--green)' : a.score >= 75 ? 'var(--amber)' : 'var(--red)'}" stroke-width="2.5"><title>${esc(a.templateTitle)} · ${fmtDate(a.ts, false)} · ${a.score}%</title></circle>`).join('');
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Compliance score over the last ${pts.length} audits. Latest ${pts[pts.length - 1].score} percent.">${grid}<line x1="${L}" x2="${W - R}" y1="${y(90)}" y2="${y(90)}" stroke="var(--green)" stroke-dasharray="5 4" opacity=".8"/>${area}<path d="${line}" fill="none" stroke="var(--amber)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${dots}<text x="${L}" y="${H - 8}">${fmtDate(pts[0].ts, false)}</text><text x="${W - R}" y="${H - 8}" text-anchor="end">${fmtDate(pts[pts.length - 1].ts, false)}</text></svg><p class="hint">Dashed line marks the 90% target. Hover or tap a point for details.</p>`;
+  const curve = spline(P);
+  const area = pts.length > 1 ? `<path d="${curve} L${f1(P[P.length - 1][0])} ${y(0)} L${f1(P[0][0])} ${y(0)} Z" fill="url(#trendFill)"/>` : '';
+  const dots = pts.map((a, i) => {
+    const col = a.score >= 90 ? 'var(--green)' : a.score >= 75 ? 'var(--amber)' : 'var(--red)';
+    const anchor = i === 0 && pts.length > 1 ? 'start' : i === pts.length - 1 && pts.length > 1 ? 'end' : 'middle';
+    const label = `${a.templateTitle}, ${fmtDate(a.ts, false)}, ${a.score} percent`;
+    return `<g class="pt" tabindex="0" role="img" aria-label="${esc(label)}" style="color:${col}"><title>${esc(a.templateTitle)} · ${fmtDate(a.ts, false)} · ${a.score}%</title><circle class="halo" cx="${f1(P[i][0])}" cy="${f1(P[i][1])}" r="11"/><circle class="dot" cx="${f1(P[i][0])}" cy="${f1(P[i][1])}" r="5"/><text class="tip" x="${f1(P[i][0])}" y="${f1(P[i][1] - 14)}" text-anchor="${anchor}">${a.score}%</text></g>`;
+  }).join('');
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="group" aria-label="Compliance score over the last ${pts.length} audits. Latest ${pts[pts.length - 1].score} percent."><defs><linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f59e0b" stop-opacity=".15"/><stop offset="1" stop-color="#f59e0b" stop-opacity="0"/></linearGradient></defs>${grid}<line x1="${L}" x2="${W - R}" y1="${y(90)}" y2="${y(90)}" stroke="var(--green)" stroke-dasharray="5 4" opacity=".85"/>${area}${pts.length > 1 ? `<path class="line" d="${curve}" fill="none" stroke="var(--amber)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>` : ''}${dots}<text x="${L}" y="${H - 8}">${fmtDate(pts[0].ts, false)}</text><text x="${W - R}" y="${H - 8}" text-anchor="end">${fmtDate(pts[pts.length - 1].ts, false)}</text></svg><p class="hint">Dashed line marks the 90% target. Hover, tap or tab to a point for its score.</p>`;
+}
+const STEP_LBL = ['Open', 'Assigned', 'Rectifying', 'Closed'], STEP_ICO = ['⚑', '👤', '🛠', '✔'];
+function stepper(idx) {
+  const closed = idx === 3;
+  return `<ol class="steps" aria-label="Progress: step ${idx + 1} of 4, ${eng.STATUSES[idx]}">${STEP_LBL.map((n, i) => {
+    const st = closed || i < idx ? 'done' : i === idx ? 'cur' : 'todo';
+    return `<li class="${st}"${st === 'cur' ? ' aria-current="step"' : ''}><span class="dot" aria-hidden="true">${st === 'done' ? '✓' : st === 'cur' ? STEP_ICO[i] : i + 1}</span><span class="lbl"><span class="visually-hidden">${i + 1}. </span>${n}<span class="visually-hidden">${st === 'done' ? ' (completed)' : st === 'cur' ? ' (current)' : ''}</span></span></li>`;
+  }).join('')}</ol>`;
 }
 function pipelineChart(c) {
   if (!c.length) return '<p class="muted">No corrective actions yet — failed checks and High/Critical hazards appear here.</p>';

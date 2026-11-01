@@ -14,12 +14,15 @@ p{margin:0 0 var(--s3)}
 /* Shell: header content ≤1280px centred; on desktop nav (192) + content (≤1088) = 1280 so everything lines up */
 .app{min-height:100dvh;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr;grid-template-areas:"top" "main"}
 .topbar{grid-area:top;position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--border);box-shadow:var(--e1);-webkit-app-region:drag;app-region:drag}
-.topbar-in{max-width:1280px;margin:0 auto;padding:calc(var(--s2) + env(safe-area-inset-top)) var(--s4) var(--s2);display:flex;flex-wrap:wrap;gap:var(--s2);align-items:center}
+.topbar-in{max-width:1280px;margin:0 auto;padding:calc(var(--s2) + env(safe-area-inset-top)) var(--s4) var(--s2);display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .topbar-in>*{-webkit-app-region:no-drag;app-region:no-drag}
 .brand{display:flex;gap:var(--s2);align-items:center;flex:1 1 auto;min-width:0}
 .brand-text{display:flex;flex-direction:column;line-height:1.15}
 .brand-text span{font-size:.72rem;color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase}
-#facility{flex:1 1 100%;order:3}
+/* utility group: badge + ? + theme + settings, 10px gap, 44px targets */
+.util{display:flex;align-items:center;gap:10px;flex:0 0 auto}
+.fac{flex:1 1 100%;order:3}
+@media (max-width:359px){.brand-text{display:none}}
 .hide-sm{display:none}
 @media (display-mode:window-controls-overlay){.topbar-in{padding-left:calc(env(titlebar-area-x,0px) + var(--s4));padding-top:max(var(--s2),env(titlebar-area-y,0px))}}
 
@@ -42,7 +45,7 @@ main:focus,main:focus-visible{outline:none!important;box-shadow:none!important}
 
 @media (min-width:520px){.hide-sm{display:inline}}
 @media (min-width:768px){
-  #facility{flex:0 1 340px;order:0}
+  .fac{flex:0 1 340px;order:0}
   .topbar-in{padding-left:var(--s5);padding-right:var(--s5)}
   main{padding:var(--s5);padding-bottom:calc(96px + env(safe-area-inset-bottom))}
   .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}

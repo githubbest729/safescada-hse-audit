@@ -1,5 +1,5 @@
 // SafeSCADA HSE Audit service worker — cache-first app shell, network-first for API/sync paths.
-const VERSION = 'safescada-v1.2.0';
+const VERSION = 'safescada-v1.3.0';
 const BASE = self.registration.scope; // works at domain root or any subpath (e.g. GitHub Pages project sites)
 const U = (p) => new URL(p, BASE).href;
 const SHELL = ['./', './index.html', './offline.html', './manifest.webmanifest', './favicon.svg', './favicon.ico', './apple-touch-icon.png',
