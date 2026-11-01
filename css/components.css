@@ -136,3 +136,58 @@ dialog::backdrop{background:rgba(2,6,15,.7);backdrop-filter:blur(2px)}
 .install[hidden]{display:none}
 .install strong{display:block}.install span{font-size:.85rem;color:var(--text-muted)}
 @media (min-width:900px){.install{left:24px;right:auto;bottom:24px;margin:0}}
+
+/* ================= v1.2: step counter, dock, switch, guide, charts ================= */
+.sticky-progress .stepc{font-weight:800}
+.sticky-progress .meta{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s4);align-items:center;justify-content:space-between;margin-top:var(--s2)}
+.dock{position:sticky;bottom:calc(68px + env(safe-area-inset-bottom));z-index:6;display:grid;grid-template-columns:1fr 2fr;gap:var(--s2);max-width:440px;margin:var(--s4) auto var(--s4) 0;padding:var(--s2);background:var(--surface-3);border:1px solid var(--border-strong);border-radius:var(--r3);box-shadow:var(--e2)}
+@media (min-width:900px){.dock{bottom:var(--s4)}}
+.item.active{border-color:var(--border-strong)}
+.item.pulse{animation:pulse 900ms var(--ease)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(245,158,11,.6)}100%{box-shadow:0 0 0 14px rgba(245,158,11,0)}}
+@media (max-width:899px){body.has-dock #toasts{top:calc(var(--topbar-h,112px) + 8px);bottom:auto}body.has-dock .install{display:none}}
+
+/* Switch */
+.switch{position:relative;display:flex;align-items:center;gap:var(--s3);min-height:44px;cursor:pointer;font-weight:600;margin:0}
+.switch input{position:absolute;left:0;top:50%;transform:translateY(-50%);z-index:1;opacity:0;width:44px;height:44px;margin:0;min-height:0;padding:0;cursor:pointer}
+.switch .track{flex:0 0 auto;position:relative;width:44px;height:26px;border-radius:99px;background:var(--surface-3);border:1px solid var(--border-strong);transition:background var(--dur) var(--ease)}
+.switch .track::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--text-muted);transition:transform var(--dur) var(--ease),background var(--dur) var(--ease)}
+.switch input:checked + .track{background:var(--amber-bg);border-color:var(--amber)}
+.switch input:checked + .track::after{transform:translateX(18px);background:var(--amber)}
+.switch input:focus-visible + .track{outline:2px solid var(--focus);outline-offset:2px;box-shadow:var(--ring)}
+.switch.compact{font-size:.85rem;min-height:36px}
+
+/* Settings */
+.settings fieldset{border:1px solid var(--border);border-radius:var(--r2);padding:var(--s3) var(--s4);margin:0 0 var(--s3);min-width:0}
+.settings legend{padding:0 var(--s2);font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted)}
+.settings .field{margin-bottom:var(--s2)}
+
+/* Guide */
+dialog.wide{width:min(640px,calc(100vw - 24px))}
+.guide .dots{display:flex;gap:var(--s2);margin:var(--s3) 0 var(--s4)}
+.guide .dots i{flex:1;height:5px;border-radius:99px;background:var(--surface-3);transition:background var(--dur) var(--ease)}
+.guide .dots i.on{background:var(--amber)}
+.guide-ico{width:56px;height:56px;border-radius:var(--r3);display:grid;place-items:center;font-size:1.7rem;background:var(--amber-bg);margin-bottom:var(--s3)}
+.guide h2{font-size:1.35rem;outline:none}
+.guide-body ul{padding-left:20px;margin:0 0 var(--s3)}.guide-body li{margin-bottom:var(--s2)}
+.guide .chips{flex-wrap:wrap;overflow:visible}
+.matrix.mini{border-spacing:3px;max-width:240px;margin:var(--s2) 0}
+.matrix.mini td{height:24px;font-size:.62rem;border-radius:4px}
+
+/* Charts */
+.chart{width:100%;height:auto;display:block}
+.chart text{fill:var(--text-muted);font-size:11px}
+.hbar{display:grid;grid-template-columns:minmax(110px,1.1fr) 3fr 28px;gap:var(--s3);align-items:center;margin-bottom:var(--s2);font-size:.88rem}
+.hbar b{text-align:right;font-variant-numeric:tabular-nums}
+.bar.c-open>i{background:var(--red)}.bar.c-assigned>i{background:var(--blue)}.bar.c-rect>i{background:var(--amber)}.bar.c-closed>i{background:var(--green)}
+.stack-bar{display:flex;height:14px;border-radius:99px;overflow:hidden;background:var(--surface-3);margin:var(--s2) 0}
+.stack-bar i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:var(--s1) var(--s4);font-size:.8rem;color:var(--text-muted)}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;background:var(--c)}
+
+/* compact sync badge on narrow phones: coloured dot only (text stays available to screen readers) */
+@media (max-width:419px){
+  #syncBadge{width:28px;padding:0;justify-content:center}
+  #syncBadge .badge-txt{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  #syncBadge::before{width:12px;height:12px}
+}

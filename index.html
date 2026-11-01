@@ -23,15 +23,17 @@
 <body>
 <a class="skip" href="#view">Skip to content</a>
 <div class="app">
-  <header class="topbar">
+  <header class="topbar"><div class="topbar-in">
     <div class="brand">
       <img src="./favicon.svg" alt="" width="32" height="32">
       <div class="brand-text"><strong>SafeSCADA</strong><span>HSE Audit</span></div>
     </div>
     <span id="syncBadge" class="badge" role="status">Checking…</span>
+    <button id="helpBtn" class="btn btn-icon" type="button" aria-label="Open HSE guide" aria-haspopup="dialog" title="HSE guide">?</button>
     <button id="themeBtn" class="btn btn-icon" type="button" aria-label="Change theme">◐</button>
+    <button id="settingsBtn" class="btn btn-icon" type="button" aria-label="Open settings" aria-haspopup="dialog" title="Settings">⚙</button>
     <select id="facility" aria-label="Facility"></select>
-  </header>
+  </div></header>
   <nav class="nav" aria-label="Primary">
     <a href="#/dashboard" data-nav="dashboard"><span aria-hidden="true">▦</span>Dashboard</a>
     <a href="#/audits" data-nav="audits"><span aria-hidden="true">✔</span>Audits</a>

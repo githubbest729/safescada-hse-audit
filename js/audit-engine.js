@@ -61,7 +61,7 @@ export const uid = (p) => p + '_' + Date.now().toString(36) + Math.random().toSt
 export function newDraft(t, facility) {
   const answers = {};
   t.items.forEach((i) => { answers[i.id] = { r: null, note: '', photos: [] }; });
-  return { id: uid('aud'), templateId: t.id, templateTitle: t.title, facility, ts: Date.now(), inspector: localStorage.getItem('ss_user') || '', geo: null, notes: '', answers };
+  return { id: uid('aud'), templateId: t.id, templateTitle: t.title, facility, ts: Date.now(), inspector: localStorage.getItem('ss_user') || '', inspectorId: localStorage.getItem('ss_userid') || '', geo: null, notes: '', answers };
 }
 
 export function computeScore(t, answers) {
@@ -115,4 +115,62 @@ export function sla(due, status) {
 export function toCSV(rows, cols) {
   const q = (v) => { v = v == null ? '' : String(v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
   return [cols.join(','), ...rows.map((r) => cols.map((c) => q(r[c])).join(','))].join('\r\n');
+}
+
+// ---------- Demo data (all records flagged demo:true so they can be removed without touching real data) ----------
+export function buildDemo() {
+  let seed = 20261031;
+  const rnd = () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const now = Date.now();
+  const SIG = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="100" viewBox="0 0 300 100"><rect width="300" height="100" fill="#fff"/><path d="M20 70 C40 10 60 90 80 40 S120 20 140 60 S190 90 210 35 S260 50 280 30" fill="none" stroke="#0b0f19" stroke-width="3" stroke-linecap="round"/></svg>');
+  const people = [['A. Rahman', 'ENG-1042'], ['M. Santos', 'ENG-2217'], ['K. Nair', 'ENG-3105']];
+  const audits = [], capas = [], hazards = [], permits = {}, lti = {};
+  const closeOut = (c, ageDays, by) => {
+    const t0 = c.created;
+    if (ageDays > 40) {
+      c.status = 'Verified Closed'; c.assignee = by;
+      c.history.push({ ts: t0 + 864e5, status: 'Assigned', by, note: 'Demo assignment' }, { ts: t0 + 3 * 864e5, status: 'Under Rectification', by, note: 'Work order raised' }, { ts: t0 + 6 * 864e5, status: 'Verified Closed', by, note: 'Verified on site' });
+      c.signoff = { by, ts: t0 + 6 * 864e5 };
+    } else if (ageDays > 20) {
+      c.status = 'Under Rectification'; c.assignee = by;
+      c.history.push({ ts: t0 + 864e5, status: 'Assigned', by, note: 'Demo assignment' }, { ts: t0 + 3 * 864e5, status: 'Under Rectification', by, note: 'Work order raised' });
+    } else if (rnd() < 0.5) {
+      c.status = 'Assigned'; c.assignee = by; c.history.push({ ts: t0 + 36e5, status: 'Assigned', by, note: 'Demo assignment' });
+    }
+  };
+  FACILITIES.forEach((f, fi) => {
+    permits[f.name] = [2, 1, 3, 0][fi]; lti[f.name] = now - [142, 87, 311, 29][fi] * 864e5;
+    const n = 6;
+    for (let k = 0; k < n; k++) {
+      const daysAgo = Math.round((n - 1 - k) * 9 + rnd() * 3 + fi);
+      const ts = now - daysAgo * 864e5 - Math.round(rnd() * 2e7);
+      const t = TEMPLATES[(fi + k) % TEMPLATES.length], p = people[(fi + k) % people.length];
+      const failP = 0.30 - k * 0.045, answers = {};
+      t.items.forEach((i) => {
+        const r = rnd();
+        const res = r < 0.07 ? 'na' : rnd() < failP ? 'fail' : 'pass';
+        answers[i.id] = { r: res, note: res === 'fail' ? 'Observed during demo inspection — corrective action required.' : '', photos: [] };
+      });
+      if (k < 2) answers[t.items[1].id].r = 'fail';
+      const draft = { id: 'demo_aud_' + fi + '_' + k, templateId: t.id, templateTitle: t.title, facility: f.name, ts, inspector: p[0], inspectorId: p[1], geo: { lat: f.lat, lng: f.lng, mock: true }, notes: 'Demo inspection record.', answers };
+      const r = finalize(draft, SIG);
+      r.audit.ts = ts; r.audit.demo = true; audits.push(r.audit);
+      r.capas.forEach((c, ci) => {
+        c.id = 'demo_capa_' + draft.id + '_' + ci; c.created = ts; c.due = ts + SLA_DAYS[c.severity] * 864e5;
+        c.history = [{ ts, status: 'Open', by: p[0], note: 'Raised from audit' }]; c.demo = true;
+        closeOut(c, daysAgo, p[0]); capas.push(c);
+      });
+    }
+    [[3, 4, 'Exposed terminals on marshalling panel after door left open', 'Hazard'], [2, 3, 'Trip hazard — loose cable across server aisle', 'Near-miss'], [4, 4, 'Unguarded FM200 manual release lever', 'Hazard']].forEach(([pr, sv, desc, type], hi) => {
+      const rl = riskLevel(pr, sv), ts = now - Math.round((hi * 11 + 3 + fi * 2) * 864e5);
+      const h = { id: 'demo_haz_' + fi + '_' + hi, ts, facility: f.name, type, desc, loc: 'Demo location ' + (hi + 1), reporter: people[hi % 3][0], p: pr, s: sv, score: rl.v, level: rl.key, demo: true };
+      hazards.push(h);
+      if (rl.v >= 10) {
+        const c = makeCapa({ source: 'hazard', sourceId: h.id, facility: f.name, sev: rl.key, title: type + ': ' + desc, by: h.reporter });
+        c.id = 'demo_capa_' + h.id; c.created = ts; c.due = ts + SLA_DAYS[rl.key] * 864e5; c.history[0].ts = ts; c.demo = true;
+        closeOut(c, Math.round((now - ts) / 864e5), h.reporter); capas.push(c);
+      }
+    });
+  });
+  return { audits, hazards, capas, permits, lti };
 }

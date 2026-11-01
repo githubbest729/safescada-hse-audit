@@ -20,6 +20,7 @@ export function toast(msg, { type = 'info', action = null, sticky = false, ms = 
   }
   const x = document.createElement('button'); x.className = 'btn btn-sm btn-ghost'; x.type = 'button';
   x.setAttribute('aria-label', 'Dismiss'); x.textContent = '✕'; x.onclick = close; el.append(x);
+  if (type === 'error' || type === 'warn') feedback('error'); else if (type === 'success') feedback('ok');
   $('#toasts').append(el);
   if (!sticky) setTimeout(close, ms);
   return close;
@@ -47,22 +48,53 @@ function fieldHTML(f) {
   return `<div class="field"><label for="${id}">${esc(f.label)}</label>${c}</div>`;
 }
 
+let dlgCleanup = null;
+export function prepDialog(cls = '', onClose = null) {
+  const d = $('#dlg');
+  if (dlgCleanup) { const c = dlgCleanup; dlgCleanup = null; c(); }
+  if (d.open) d.close();
+  d.className = cls; d.onclick = null; d.oncancel = null; dlgCleanup = onClose;
+  return d;
+}
+document.addEventListener('DOMContentLoaded', () => {
+  $('#dlg').addEventListener('close', () => { if (!$('#dlg').open && dlgCleanup) { const c = dlgCleanup; dlgCleanup = null; c(); } });
+});
+
+// Haptic + audio feedback (opt-in via Settings)
+let actx = null;
+export const feedbackOn = () => localStorage.getItem('ss_feedback') === '1';
+export function feedback(kind = 'tap') {
+  if (!feedbackOn()) return;
+  try { if (navigator.vibrate) navigator.vibrate(kind === 'error' ? [30, 40, 30] : 12); } catch (e) {}
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    actx = actx || new AC(); if (actx.state === 'suspended') actx.resume();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = 'sine'; o.frequency.value = kind === 'error' ? 220 : kind === 'ok' ? 880 : 660;
+    g.gain.setValueAtTime(0.05, actx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + 0.07);
+    o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime + 0.08);
+  } catch (e) {}
+}
+export function initFeedback() {
+  document.addEventListener('click', (e) => { if (e.target.closest('button,.btn,.chip,.nav a,.seg-btn')) feedback(); }, true);
+}
+
 export function ask({ title, intro = '', fields = [], submit = 'Save', cancel = 'Cancel', danger = false }) {
   return new Promise((resolve) => {
-    const d = $('#dlg'); let done = false;
+    const d = prepDialog(); let done = false;
     d.innerHTML = `<form class="dlg-form"><h2>${esc(title)}</h2>${intro ? `<p class="muted">${esc(intro)}</p>` : ''}${fields.map(fieldHTML).join('')}<div class="dlg-actions"><button type="button" class="btn btn-ghost" data-x>${esc(cancel)}</button><button class="btn ${danger ? 'btn-danger' : 'btn-primary'}">${esc(submit)}</button></div></form>`;
     const form = d.firstElementChild;
     const finish = (v) => { if (done) return; done = true; d.close(); resolve(v); };
     form.addEventListener('submit', (e) => { e.preventDefault(); finish(Object.fromEntries(new FormData(form))); });
     $('[data-x]', d).onclick = () => finish(null);
-    d.addEventListener('cancel', (e) => { e.preventDefault(); finish(null); }, { once: true });
+    d.oncancel = (e) => { e.preventDefault(); finish(null); };
     d.showModal();
-    const f = $('input,select,textarea', d); if (f) f.focus(); else $('.btn-primary', d).focus();
+    const f = $('input,select,textarea', d); if (f) f.focus(); else { const b = $('.btn-primary,.btn-danger', d); if (b) b.focus(); }
   });
 }
 
 export function showHTML(title, html) {
-  const d = $('#dlg');
+  const d = prepDialog();
   d.innerHTML = `<h2>${esc(title)}</h2>${html}<div class="dlg-actions"><button class="btn btn-primary" type="button" data-x>Close</button></div>`;
   $('[data-x]', d).onclick = () => d.close();
   d.showModal(); $('[data-x]', d).focus();

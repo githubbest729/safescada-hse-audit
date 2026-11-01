@@ -69,6 +69,16 @@ export async function putMany(store, values) {
   });
 }
 
+export async function delMany(store, keys) {
+  if (!keys.length) return 0;
+  const db = await open();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite'); const st = tx.objectStore(store);
+    keys.forEach((k) => st.delete(k));
+    tx.oncomplete = () => resolve(keys.length); tx.onerror = () => reject(tx.error);
+  });
+}
+
 export async function getMeta(key, fallback = null) {
   const r = await get('meta', key);
   return r ? r.value : fallback;
